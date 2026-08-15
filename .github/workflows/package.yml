@@ -1,0 +1,53 @@
+name: Package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Packaging-only: PKGBUILD source= is upstream overskride, not this repo.
+  # The shared arch-package.yml HEAD-snapshot would build the wrong tarball
+  # until skip-head-snapshot is pinned from packaging-workflows.
+  arch:
+    name: makepkg → namcap
+    runs-on: ubuntu-latest
+    container: archlinux:latest@sha256:b0deabeb3d283da2c7f7dbf0eea051b7b2cd0554e0b737cc457fd21683bdcdd1
+    steps:
+      - name: Install build tooling
+        run: >-
+          pacman -Syu --noconfirm --needed base-devel git sudo namcap
+          github-cli pacman-contrib curl gnupg
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Source integrity policy
+        run: |
+          if grep -Eq "^[[:space:]]*[[:alnum:]]+sums=.*['\"]SKIP['\"]" packaging/PKGBUILD; then
+            echo "::error::PKGBUILD source checksums may not use SKIP"
+            exit 1
+          fi
+      - name: Prepare unprivileged builder
+        run: |
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+          chown -R builder: "$GITHUB_WORKSPACE"
+      - name: Build package
+        run: |
+          cd packaging
+          su builder -c 'makepkg -s --noconfirm'
+      - name: namcap (informational)
+        run: namcap packaging/*.pkg.tar.zst || true
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: arch-package
+          path: packaging/*.pkg.tar.zst
+
+  rpm:
+    uses: MasonRhodesDev/packaging-workflows/.github/workflows/rpm-check.yml@429e647539b02e85ea59b38c441f83a86ee77835
+    with:
+      spec-name: overskride

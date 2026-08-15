@@ -5,7 +5,7 @@ Summary:        Bluetooth and Obex client
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/kaii-lb/overskride
-Source0:        %{url}/archive/refs/tags/v%{version}/%{name}-%{version}.tar.gz
+Source0:        %{url}/archive/refs/tags/v%{version}.tar.gz
 
 BuildRequires:  meson
 BuildRequires:  ninja-build
