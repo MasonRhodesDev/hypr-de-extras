@@ -23,9 +23,6 @@ BuildRequires:  libappstream-glib
 BuildRequires:  glib2-devel
 
 Requires:       bluez
-Requires:       gtk4
-Requires:       libadwaita
-Requires:       pulseaudio-libs
 Requires:       hicolor-icon-theme
 
 %description
