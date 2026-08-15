@@ -16,6 +16,7 @@ BuildRequires:  pkgconfig(gtk4)
 BuildRequires:  pkgconfig(libadwaita-1)
 BuildRequires:  pkgconfig(libpulse)
 BuildRequires:  pkgconfig(gio-2.0)
+BuildRequires:  pkgconfig(dbus-1)
 BuildRequires:  blueprint-compiler
 BuildRequires:  desktop-file-utils
 BuildRequires:  libappstream-glib
