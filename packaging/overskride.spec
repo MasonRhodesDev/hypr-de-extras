@@ -69,7 +69,6 @@ appstream-util validate-relax --nonet \
 %{_datadir}/icons/hicolor/scalable/apps/io.github.kaii_lb.Overskride.svg
 %{_datadir}/icons/hicolor/symbolic/apps/io.github.kaii_lb.Overskride-symbolic.svg
 %{_datadir}/overskride/overskride.gresource
-%{_datadir}/locale/
 
 %changelog
 * Sat Aug 15 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.6.6-1
