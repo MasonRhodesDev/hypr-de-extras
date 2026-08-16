@@ -3,7 +3,7 @@
 # extra does not carry it and hypr-DE Requires it.
 pkgname=overskride
 pkgver=0.6.6
-pkgrel=1
+pkgrel=2
 pkgdesc='Bluetooth and Obex client (hypr-DE Bluetooth UI)'
 url='https://github.com/kaii-lb/overskride'
 license=('GPL-3.0-or-later')

@@ -12,11 +12,11 @@ concurrency:
 jobs:
   # Packaging-only: PKGBUILD source= is upstream overskride, not this repo.
   arch:
-    uses: MasonRhodesDev/packaging-workflows/.github/workflows/arch-package.yml@77a592545a6cf6b7cb1ddfc5ee07126037f4feb1
+    uses: MasonRhodesDev/packaging-workflows/.github/workflows/arch-package.yml@a1b85c42addd5e876f301886f5c6ea9d1cc9b168
     with:
       skip-head-snapshot: true
 
   rpm:
-    uses: MasonRhodesDev/packaging-workflows/.github/workflows/rpm-check.yml@77a592545a6cf6b7cb1ddfc5ee07126037f4feb1
+    uses: MasonRhodesDev/packaging-workflows/.github/workflows/rpm-check.yml@a1b85c42addd5e876f301886f5c6ea9d1cc9b168
     with:
       spec-name: overskride

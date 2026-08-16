@@ -1,6 +1,6 @@
 Name:           overskride
 Version:        0.6.6
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Bluetooth and Obex client
 
 License:        GPL-3.0-or-later
@@ -68,5 +68,8 @@ appstream-util validate-relax --nonet \
 %{_datadir}/overskride/overskride.gresource
 
 %changelog
+* Sun Aug 16 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.6.6-2
+- Rebuild with the gh -R release pin so COPR publish can succeed.
+
 * Sat Aug 15 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.6.6-1
 - Initial COPR package for hypr-DE (upstream v0.6.6)
