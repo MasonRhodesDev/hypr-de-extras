@@ -1,6 +1,6 @@
 Name:           overskride
 Version:        0.6.6
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Bluetooth and Obex client
 
 License:        GPL-3.0-or-later
@@ -68,6 +68,9 @@ appstream-util validate-relax --nonet \
 %{_datadir}/overskride/overskride.gresource
 
 %changelog
+* Sun Aug 16 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.6.6-3
+- Republish so [mason] picks up ARCH_REPO_TOKEN.
+
 * Sun Aug 16 2026 Mason Rhodes <mrhodesdev@gmail.com> - 0.6.6-2
 - Rebuild with the gh -R release pin so COPR publish can succeed.
 
