@@ -1,0 +1,138 @@
+# Build and publish the Fedora mirror stack to COPR solaris765/hypr-de-extras.
+#
+# Every package in this repo's top-level <name>/<name>.spec dirs is COPR-owned
+# by THIS workflow: a push that touches a package dir rebuilds exactly those
+# packages; workflow_dispatch rebuilds a named set or everything. Sources are
+# fetched from the upstream URLs in each spec (spectool), so no tarballs live
+# in git. Submissions block until COPR finishes — a failed COPR build fails CI.
+#
+# overskride is NOT built here: it releases through release.yml on v* tags
+# together with its Arch package.
+
+name: Fedora stack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*/*.spec'
+      - '*/*.patch'
+      - '!packaging/**'
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: Space-separated package dirs to build, or "all"
+        required: true
+        default: all
+
+concurrency:
+  group: fedora-stack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  copr:
+    name: SRPM → COPR
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:42@sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c
+    steps:
+      # git before checkout: in a container job actions/checkout otherwise
+      # falls back to an API tarball and the rpmautospec release count (one
+      # per commit touching the spec) has no history to walk.
+      - name: Install build tooling
+        run: dnf -y install git-core rpm-build rpmdevtools rpmautospec-rpm-macros copr-cli curl-minimal
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+      - name: Resolve package list
+        id: pkgs
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$(pwd)"
+          all=$(for d in */; do
+              d=${d%/}
+              [ "$d" = packaging ] && continue
+              [ -f "$d/$d.spec" ] && echo "$d"
+          done)
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+              want="${{ inputs.packages }}"
+              [ "$want" = all ] && want="$all"
+          else
+              # Only the dirs this push touched.
+              want=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- '*/*.spec' '*/*.patch' 2>/dev/null \
+                  | cut -d/ -f1 | sort -u | grep -vx packaging || true)
+          fi
+          # Keep only real package dirs, preserving one per line.
+          list=$(for p in $want; do echo "$all" | grep -qx "$p" && echo "$p"; done)
+          if [ -z "$list" ]; then
+              echo "No package dirs affected." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+              echo "list<<EOF"
+              echo "$list"
+              echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          printf 'building:\n%s\n' "$list"
+      - name: Build SRPMs and submit to COPR
+        if: steps.pkgs.outputs.list != ''
+        env:
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+          COPR_PROJECT: hypr-de-extras
+          COPR_CHROOTS: --chroot fedora-44-x86_64
+        run: |
+          set -euo pipefail
+          if [ -z "$COPR_CONFIG" ]; then
+              echo "::error::COPR_CONFIG is required — the stack must publish COPR"
+              exit 1
+          fi
+          mkdir -p ~/.config
+          printf '%s' "$COPR_CONFIG" > ~/.config/copr
+          chmod 600 ~/.config/copr
+
+          {
+              echo "## Fedora stack → COPR"
+              echo "| package | result |"
+              echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          fail=0
+          declare -A build_of srpm_of
+          # Phase 1: SRPMs + non-blocking submits so COPR builds in parallel.
+          while IFS= read -r pkg; do
+              [ -n "$pkg" ] || continue
+              echo "==> $pkg"
+              work=$(mktemp -d)
+              if ! spectool -g -C "$work" "$pkg/$pkg.spec"; then
+                  echo "| $pkg | ❌ source fetch failed |" >> "$GITHUB_STEP_SUMMARY"
+                  fail=1; continue
+              fi
+              cp "$pkg"/*.patch "$work"/ 2>/dev/null || true
+              if ! srpm=$(rpmbuild -bs "$pkg/$pkg.spec" \
+                      --define "_sourcedir $work" --define "_srcrpmdir $work" \
+                      | sed -n 's/^Wrote: //p') || [ -z "$srpm" ]; then
+                  echo "| $pkg | ❌ SRPM build failed |" >> "$GITHUB_STEP_SUMMARY"
+                  fail=1; continue
+              fi
+              id=$(copr-cli build "$COPR_PROJECT" "$srpm" $COPR_CHROOTS --nowait \
+                      | sed -n 's/^Created builds: //p')
+              if [ -z "$id" ]; then
+                  echo "| $pkg | ❌ COPR submit failed |" >> "$GITHUB_STEP_SUMMARY"
+                  fail=1; continue
+              fi
+              build_of[$pkg]=$id
+              srpm_of[$pkg]=$(basename "$srpm")
+          done <<< "${{ steps.pkgs.outputs.list }}"
+
+          # Phase 2: one wait for everything, then verify each state — a red
+          # COPR build must be a red CI run (watch-build's exit code lies).
+          if [ "${#build_of[@]}" -gt 0 ]; then
+              copr-cli watch-build "${build_of[@]}" || true
+              for pkg in "${!build_of[@]}"; do
+                  state=$(copr-cli status "${build_of[$pkg]}" | tail -1)
+                  if [ "$state" = succeeded ]; then
+                      echo "| $pkg | ✅ ${srpm_of[$pkg]} ([build ${build_of[$pkg]}](https://copr.fedorainfracloud.org/coprs/build/${build_of[$pkg]})) |" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                      echo "| $pkg | ❌ $state ([build ${build_of[$pkg]}](https://copr.fedorainfracloud.org/coprs/build/${build_of[$pkg]})) |" >> "$GITHUB_STEP_SUMMARY"
+                      fail=1
+                  fi
+              done
+          fi
+          exit "$fail"
