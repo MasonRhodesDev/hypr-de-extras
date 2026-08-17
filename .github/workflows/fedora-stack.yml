@@ -40,8 +40,11 @@ jobs:
       # git before checkout: in a container job actions/checkout otherwise
       # falls back to an API tarball and the rpmautospec release count (one
       # per commit touching the spec) has no history to walk.
+      # rpmautospec (the CLI, not the old -rpm-macros subpackage — f44 folded
+      # the macros into redhat-rpm-config) makes %autorelease count commits
+      # touching the spec instead of pinning every build at -1.
       - name: Install build tooling
-        run: dnf -y install git-core rpm-build rpmdevtools rpmautospec-rpm-macros copr-cli curl-minimal
+        run: dnf -y install git-core rpm-build rpmdevtools rpmautospec copr-cli curl-minimal
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           fetch-depth: 0
