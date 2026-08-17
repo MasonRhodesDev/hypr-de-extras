@@ -33,7 +33,9 @@ jobs:
   copr:
     name: SRPM → COPR
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:42@sha256:e78cd1a688cd079c23864f289a89a49a3f4ad66d817864e325e1d058310ee95c
+    # f44: rpmautospec-rpm-macros does not exist in the f42 image the other
+    # workflows pin, and 44 matches the chroot we target anyway.
+    container: registry.fedoraproject.org/fedora:44@sha256:31c1705f2d9cd0fec74f90f9d4e4ac0b3e9972aba0ce87a69a8335ba7c706c76
     steps:
       # git before checkout: in a container job actions/checkout otherwise
       # falls back to an API tarball and the rpmautospec release count (one
